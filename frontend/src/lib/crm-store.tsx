@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import type { Lead, Employee, Task, FollowUp, Quotation, LeadStatus, Priority, ActivityEvent, AssignmentEvent } from "./mock-data";
 import { api, getAuthToken } from "./api";
+import { useRole } from "./role-context";
 
 // Default seed employees to ensure RoleProvider and role-switching features work
 const DEFAULT_EMPLOYEES: Employee[] = [
@@ -62,6 +63,7 @@ interface CRMStoreContextType {
 const CRMStoreContext = createContext<CRMStoreContextType | null>(null);
 
 export function CRMStoreProvider({ children }: { children: ReactNode }) {
+  const { role, currentUser } = useRole();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -100,28 +102,53 @@ export function CRMStoreProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("crm-auth-change", loadAllData);
   }, []);
 
-  // Helper selectors
-  const customers = leads
-    .filter((l) => l.status === "Won")
-    .map((l, i) => ({
-      id: `CU-${7000 + i + 1}`,
-      company: l.company,
-      contact: l.contact,
-      city: l.city,
-      email: l.email,
-      mobile: l.mobile,
-      lifetimeValue: l.estimatedValue,
-      ownerId: l.ownerId,
-    }));
+  // Helper selectors filtered by role
+  const filteredLeads = React.useMemo(() => {
+    if (role === "sales_executive") {
+      return leads.filter((l) => l.ownerId === currentUser.id);
+    }
+    return leads;
+  }, [leads, role, currentUser.id]);
 
-  const orders = customers.map((c, i) => ({
-    id: `OR-${8000 + i + 1}`,
-    customerId: c.id,
-    company: c.company,
-    amount: c.lifetimeValue,
-    status: "Processing" as const,
-    date: new Date().toISOString(),
-  }));
+  const filteredFollowUps = React.useMemo(() => {
+    if (role === "sales_executive") {
+      return followUps.filter((f) => f.ownerId === currentUser.id);
+    }
+    return followUps;
+  }, [followUps, role, currentUser.id]);
+
+  const filteredTasks = React.useMemo(() => {
+    if (role === "sales_executive") {
+      return tasks.filter((t) => t.assignedTo === currentUser.id);
+    }
+    return tasks;
+  }, [tasks, role, currentUser.id]);
+
+  const customers = React.useMemo(() => {
+    return filteredLeads
+      .filter((l) => l.status === "Won")
+      .map((l, i) => ({
+        id: `CU-${7000 + i + 1}`,
+        company: l.company,
+        contact: l.contact,
+        city: l.city,
+        email: l.email,
+        mobile: l.mobile,
+        lifetimeValue: l.estimatedValue,
+        ownerId: l.ownerId,
+      }));
+  }, [filteredLeads]);
+
+  const orders = React.useMemo(() => {
+    return customers.map((c, i) => ({
+      id: `OR-${8000 + i + 1}`,
+      customerId: c.id,
+      company: c.company,
+      amount: c.lifetimeValue,
+      status: "Processing" as const,
+      date: new Date().toISOString().split("T")[0],
+    }));
+  }, [customers]);
 
   // Mutators
   const addLead = async (
@@ -312,10 +339,10 @@ export function CRMStoreProvider({ children }: { children: ReactNode }) {
   return (
     <CRMStoreContext.Provider
       value={{
-        leads,
+        leads: filteredLeads,
         employees,
-        tasks,
-        followUps,
+        tasks: filteredTasks,
+        followUps: filteredFollowUps,
         quotations,
         customers,
         orders,

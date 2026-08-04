@@ -36,7 +36,7 @@ export function AddEmployeeModal({ open, onOpenChange }: { open: boolean; onOpen
         name,
         role,
         department,
-        managerName: manager === "none" || !manager ? undefined : manager,
+        manager: manager === "none" || !manager ? undefined : manager,
         status,
         target: Number(target) || 0,
         email,

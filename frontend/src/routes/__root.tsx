@@ -93,6 +93,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
+      {
+        rel: "icon",
+        type: "image/jpeg",
+        href: "/favicon.jpg",
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -123,11 +128,11 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <CRMStoreProvider>
-        <RoleProvider>
+      <RoleProvider>
+        <CRMStoreProvider>
           <AppContent />
-        </RoleProvider>
-      </CRMStoreProvider>
+        </CRMStoreProvider>
+      </RoleProvider>
     </QueryClientProvider>
   );
 }

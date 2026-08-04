@@ -12,6 +12,7 @@ import {
   Settings,
 } from "lucide-react";
 import { KottravaiLogo } from "./kottravai-logo";
+import { useRole } from "@/lib/role-context";
 import {
   Sidebar,
   SidebarContent,
@@ -24,18 +25,19 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const items = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Leads", url: "/leads", icon: Users },
-  { title: "Follow-ups", url: "/follow-ups", icon: CalendarClock },
-  { title: "Tasks", url: "/tasks", icon: ListTodo },
-  { title: "Employees", url: "/employees", icon: UserCog },
-  { title: "Reports", url: "/reports", icon: BarChart3 },
-  { title: "Settings", url: "/settings", icon: Settings },
-];
-
 export function AppSidebar() {
+  const { role } = useRole();
   const { state } = useSidebar();
+
+  const items = [
+    { title: "Dashboard", url: "/", icon: LayoutDashboard },
+    { title: "Leads", url: "/leads", icon: Users },
+    { title: "Follow-ups", url: "/follow-ups", icon: CalendarClock },
+    { title: "Tasks", url: "/tasks", icon: ListTodo },
+    role === "super_admin" && { title: "Employees", url: "/employees", icon: UserCog },
+    (role === "super_admin" || role === "sales_manager") && { title: "Reports", url: "/reports", icon: BarChart3 },
+    role === "super_admin" && { title: "Settings", url: "/settings", icon: Settings },
+  ].filter(Boolean) as Array<{ title: string; url: string; icon: any }>;
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const isActive = (url: string) => (url === "/" ? pathname === "/" : pathname.startsWith(url));

@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, useState, useEffect, type ReactNode } from "react";
 import type { Role } from "./mock-data";
 import { api, getAuthToken, setAuthToken } from "./api";
+import { supabase } from "./supabaseClient";
 
 interface RoleCtx {
   role: Role;
@@ -15,8 +16,8 @@ interface RoleCtx {
 const Ctx = createContext<RoleCtx | null>(null);
 
 const defaultEmails: Record<Role, string> = {
-  sales_executive: "test@kottravai.in",
-  sales_manager: "arjun@kottravai.in",
+  sales_executive: "test@gmail.com",
+  sales_manager: "arjun@gmail.com",
   super_admin: "admin@kottravai.in",
 };
 
@@ -33,10 +34,12 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         setRoleState(u.role as Role);
       } else {
         setUser(null);
+        setRoleState("sales_executive");
       }
     } catch (err) {
       console.error("Failed to load user info:", err);
       setUser(null);
+      setRoleState("sales_executive");
       setAuthToken(null);
     } finally {
       setLoading(false);
@@ -44,12 +47,37 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const token = getAuthToken();
-    if (token) {
-      fetchCurrentUser();
-    } else {
-      setLoading(false);
-    }
+    // Check initial session
+    const initAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setAuthToken(session.access_token);
+        await fetchCurrentUser();
+      } else {
+        setRoleState("sales_executive");
+        setLoading(false);
+      }
+    };
+    initAuth();
+
+    // Listen to changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        setAuthToken(session.access_token);
+        await fetchCurrentUser();
+        window.dispatchEvent(new CustomEvent("crm-auth-change"));
+      } else {
+        setAuthToken(null);
+        setUser(null);
+        setRoleState("sales_executive");
+        setLoading(false);
+        window.dispatchEvent(new CustomEvent("crm-auth-change"));
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password = "password123") => {
@@ -64,9 +92,11 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setAuthToken(null);
     setUser(null);
+    setRoleState("sales_executive");
     window.dispatchEvent(new CustomEvent("crm-auth-change"));
   };
 

@@ -55,7 +55,7 @@ export function EditEmployeeModal({ employee, open, onOpenChange }: EditEmployee
         name,
         role,
         department,
-        managerName: manager === "none" || !manager ? undefined : manager,
+        manager: manager === "none" || !manager ? undefined : manager,
         status,
         target: Number(target) || 0,
         phone,

@@ -74,7 +74,13 @@ export const api = {
       throw new Error(error.message);
     }
 
-    const token = data.session?.access_token || "";
+    const token = data.session?.access_token;
+    if (!token) {
+      if (data.user) {
+        throw new Error("Email confirmation is required. Please check your inbox to verify your email, or disable email confirmation in your Supabase Auth settings.");
+      }
+      throw new Error("Login failed. No active session was created.");
+    }
     setAuthToken(token);
 
     // Ensure this user exists in the employees profile table
@@ -155,28 +161,65 @@ export const api = {
   },
 
   async createEmployee(employee: any): Promise<any> {
-    const email = employee.email;
+    const email = employee.email.toLowerCase();
     const password = employee.password || "password123";
+
+    // Check if the employee already exists in the database
+    const { data: existingEmp } = await supabase
+      .from("employees")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
     });
 
-    const userId = authData?.user?.id || crypto.randomUUID();
+    if (authError) {
+      console.error("Supabase Auth signUp error:", authError);
+      // If user is already registered, and we have an existing employee profile in the DB, we can proceed.
+      // Otherwise, we must alert the user about the signup failure.
+      if (authError.message.includes("already registered") || authError.status === 422) {
+        if (!existingEmp) {
+          throw new Error(`Auth signup failed: ${authError.message}. This email might already be registered in Supabase Auth but has no database profile. Try logging in with this email directly.`);
+        }
+      } else {
+        throw new Error(`Auth signup failed: ${authError.message} (Status: ${authError.status})`);
+      }
+    }
+
+    const userId = authData?.user?.id || existingEmp?.id || crypto.randomUUID();
     const dbObj = {
       id: userId,
       ...toSnake(employee),
     };
     delete dbObj.password;
 
-    const { data, error } = await supabase
-      .from("employees")
-      .insert(dbObj)
-      .select()
-      .single();
+    let data, error;
+    if (existingEmp) {
+      const { data: updateData, error: updateError } = await supabase
+        .from("employees")
+        .update(dbObj)
+        .eq("email", email)
+        .select()
+        .single();
+      data = updateData;
+      error = updateError;
+    } else {
+      const { data: insertData, error: insertError } = await supabase
+        .from("employees")
+        .insert(dbObj)
+        .select()
+        .single();
+      data = insertData;
+      error = insertError;
+    }
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("Database insert/update error:", error);
+      throw new Error(`Database error: ${error.message}`);
+    }
     return toCamel(data);
   },
 

@@ -51,6 +51,10 @@ function Dashboard() {
   const { leads, followUps, employees } = useCRMStore();
   const [isAddOpen, setIsAddOpen] = useState(false);
 
+  if (role === "sales_executive") {
+    return <SalesDashboard />;
+  }
+
   const todaysFollowUps = followUps.filter((f) => {
     const d = new Date(f.time);
     const now = new Date();
@@ -221,6 +225,157 @@ function Dashboard() {
             })
           )}
         </Card>
+      </div>
+
+      <AddLeadModal open={isAddOpen} onOpenChange={setIsAddOpen} />
+    </div>
+  );
+}
+
+function SalesDashboard() {
+  const { leads, followUps, tasks, employees } = useCRMStore();
+  const { currentUser } = useRole();
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
+  const myLeads = leads;
+  const myFollowUps = followUps;
+  const myTasks = tasks;
+
+  const todaysFollowUps = myFollowUps.filter((f) => {
+    const d = new Date(f.time);
+    const now = new Date();
+    return d.toDateString() === now.toDateString();
+  });
+
+  const pendingTasks = myTasks.filter((t) => t.status !== "Completed");
+
+  const myRecord = employees.find((e) => e.id === currentUser.id) || {
+    target: 0,
+    achieved: 0,
+    name: currentUser.name
+  };
+
+  const targetPct = myRecord.target ? Math.round((myRecord.achieved / myRecord.target) * 100) : 0;
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Welcome back, {currentUser.name} 👋</h2>
+          <p className="text-sm text-muted-foreground">Your leads, follow-ups, and tasks overview.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => setIsAddOpen(true)} className="gap-2 bg-[#8e2a8b] hover:bg-[#a636a3] text-white">
+            <UserPlus className="h-4 w-4" /> Add Lead
+          </Button>
+        </div>
+      </div>
+
+      {/* Simplified Stat Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="My Leads" value={myLeads.length} icon={Users} tone="primary" />
+        <StatCard label="New Today" value={myLeads.filter((l) => l.status === "New").length} icon={UserPlus} />
+        <StatCard label="Today's Follow-ups" value={todaysFollowUps.length} icon={CalendarClock} tone="accent" />
+        <StatCard label="My Won Deals" value={myLeads.filter((l) => l.status === "Won").length} icon={Trophy} tone="primary" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Left Column: My Leads & Tasks */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* My Leads Card */}
+          <Card className="rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Active Leads</h3>
+                <p className="text-xs text-muted-foreground">Leads currently in your pipeline</p>
+              </div>
+              <Link to="/leads" className="text-xs text-[#8e2a8b] font-bold hover:underline inline-flex items-center gap-1">
+                View all <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+            <div className="divide-y divide-slate-100 max-h-72 overflow-auto pr-1">
+              {myLeads.length === 0 && <p className="text-xs text-muted-foreground py-4">No active leads assigned to you.</p>}
+              {myLeads.slice(0, 5).map((lead) => (
+                <div key={lead.id} className="flex items-center justify-between py-3">
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-800">{lead.company}</h4>
+                    <p className="text-[10px] text-slate-400">{lead.contact} • {lead.city}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-slate-700">{formatINR(lead.estimatedValue)}</span>
+                    <StatusBadge status={lead.status} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* My Tasks Card */}
+          <Card className="rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">My Pending Tasks</h3>
+                <p className="text-xs text-muted-foreground">Tasks requiring your attention</p>
+              </div>
+              <Link to="/tasks" className="text-xs text-[#8e2a8b] font-bold hover:underline inline-flex items-center gap-1">
+                View all <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+            <div className="divide-y divide-slate-100 max-h-72 overflow-auto pr-1">
+              {pendingTasks.length === 0 && <p className="text-xs text-muted-foreground py-4">All tasks completed! Good job.</p>}
+              {pendingTasks.slice(0, 5).map((task) => (
+                <div key={task.id} className="flex items-center justify-between py-3">
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-800">{task.title}</h4>
+                    <p className="text-[10px] text-slate-400">Due: {new Date(task.dueDate).toLocaleDateString()}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                      task.priority === "High" ? "bg-red-50 text-red-600 border border-red-200" :
+                      task.priority === "Medium" ? "bg-amber-50 text-amber-600 border border-amber-200" :
+                      "bg-slate-50 text-slate-600 border border-slate-200"
+                    }`}>{task.priority}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        {/* Right Column: Follow-ups & Target progress */}
+        <div className="space-y-4">
+          {/* Target Progress */}
+          <Card className="rounded-2xl p-5 shadow-sm border border-slate-100">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Sales Target Progress</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-xs text-slate-500 font-medium">Achieved Target</span>
+                <span className="text-xs font-bold text-[#8e2a8b]">{targetPct}%</span>
+              </div>
+              <Progress value={targetPct} className="h-2.5 bg-slate-100" />
+              <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium pt-1">
+                <span>Won: {formatINR(myRecord.achieved)}</span>
+                <span>Target: {formatINR(myRecord.target)}</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Today's Follow-ups */}
+          <Card className="rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Today's Follow-ups</h3>
+              <Link to="/follow-ups" className="text-xs text-[#8e2a8b] font-bold hover:underline inline-flex items-center gap-1">
+                View all <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+            <div className="space-y-2 max-h-[300px] overflow-auto pr-1">
+              {todaysFollowUps.length === 0 && <p className="text-xs text-muted-foreground py-4">No follow-ups scheduled for today.</p>}
+              {todaysFollowUps.map((f) => (
+                <FollowUpCard key={f.id} item={f} />
+              ))}
+            </div>
+          </Card>
+        </div>
       </div>
 
       <AddLeadModal open={isAddOpen} onOpenChange={setIsAddOpen} />
