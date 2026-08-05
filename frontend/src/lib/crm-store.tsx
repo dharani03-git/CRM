@@ -43,6 +43,7 @@ interface CRMStoreContextType {
     date: string;
   }>;
   addLead: (lead: Omit<Lead, "id" | "createdAt" | "lastActivity" | "activity" | "assignmentHistory"> & { note?: string }, currentUser: { name: string }) => void;
+  addLeads: (leads: Array<Omit<Lead, "id" | "createdAt" | "lastActivity" | "activity" | "assignmentHistory"> & { note?: string }>) => Promise<any[]>;
   addEmployee: (employee: Omit<Employee, "id" | "achieved">) => void;
   addTask: (task: Omit<Task, "id">) => void;
   addFollowUp: (followUp: Omit<FollowUp, "id">) => void;
@@ -161,6 +162,17 @@ export function CRMStoreProvider({ children }: { children: ReactNode }) {
       return res;
     } catch (err) {
       console.error("Failed to create lead:", err);
+      throw err;
+    }
+  };
+
+  const addLeads = async (leadsData: any[]) => {
+    try {
+      const res = await api.createLeads(leadsData);
+      setLeads((prev) => [...res, ...prev]);
+      return res;
+    } catch (err) {
+      console.error("Failed to import leads:", err);
       throw err;
     }
   };
@@ -347,6 +359,7 @@ export function CRMStoreProvider({ children }: { children: ReactNode }) {
         customers,
         orders,
         addLead,
+        addLeads,
         addEmployee,
         addTask,
         addFollowUp,

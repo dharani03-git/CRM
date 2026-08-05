@@ -16,10 +16,11 @@ import {
   LEAD_STATUSES,
   type Lead,
 } from "@/lib/mock-data";
-import { Plus, Eye, Edit, Trash } from "lucide-react";
+import { Plus, Eye, Edit, Trash, FileSpreadsheet } from "lucide-react";
 import { useRole } from "@/lib/role-context";
 import { toast } from "sonner";
 import { EditLeadModal } from "@/components/crm/edit-lead-modal";
+import { ImportLeadsModal } from "@/components/crm/import-leads-modal";
 
 export const Route = createFileRoute("/leads/")({
   component: LeadsIndex,
@@ -46,6 +47,7 @@ function LeadsIndex() {
   const [priority, setPriority] = useState("__all__");
   const [owner, setOwner] = useState("__all__");
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [editLeadOpen, setEditLeadOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
@@ -75,9 +77,14 @@ function LeadsIndex() {
           <h2 className="text-2xl font-bold text-foreground">{scopeLabel}</h2>
           <p className="text-sm text-muted-foreground">{filtered.length} leads in view</p>
         </div>
-        <Button onClick={() => setIsAddOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" /> Add Lead
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setIsImportOpen(true)} variant="outline" className="gap-2">
+            <FileSpreadsheet className="h-4 w-4 text-emerald-500" /> Import Leads
+          </Button>
+          <Button onClick={() => setIsAddOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" /> Add Lead
+          </Button>
+        </div>
       </div>
 
       <FilterBar
@@ -150,6 +157,7 @@ function LeadsIndex() {
       </Tabs>
 
       <AddLeadModal open={isAddOpen} onOpenChange={setIsAddOpen} />
+      <ImportLeadsModal open={isImportOpen} onOpenChange={setIsImportOpen} />
       {selectedLead && (
         <EditLeadModal open={editLeadOpen} onOpenChange={setEditLeadOpen} lead={selectedLead} />
       )}

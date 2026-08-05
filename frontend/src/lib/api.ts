@@ -305,6 +305,52 @@ export const api = {
     return toCamel(data);
   },
 
+  async createLeads(leads: any[]): Promise<any[]> {
+    const now = new Date().toISOString();
+    let actor = "System User";
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        actor = user.email.split("@")[0];
+        actor = actor.charAt(0).toUpperCase() + actor.slice(1);
+      }
+    } catch {}
+
+    const dbObjs = leads.map((lead, idx) => {
+      const cleanLead = { ...lead };
+      const firstNote = cleanLead.note || "Lead created via bulk import.";
+      delete cleanLead.note;
+
+      const dbObj = toSnake(cleanLead);
+      dbObj.activity = [
+        {
+          id: `ACT-${Date.now()}-${idx}`,
+          type: "assignment",
+          actor,
+          timestamp: now,
+          summary: firstNote,
+        },
+      ];
+      dbObj.assignment_history = [
+        {
+          by: actor,
+          to: "Assigned Owner",
+          date: now,
+          note: "Lead created via bulk import.",
+        },
+      ];
+      return dbObj;
+    });
+
+    const { data, error } = await supabase
+      .from("leads")
+      .insert(dbObjs)
+      .select();
+
+    if (error) throw new Error(error.message);
+    return toCamel(data || []);
+  },
+
   async updateLead(leadId: string, lead: any): Promise<any> {
     const dbObj = toSnake(lead);
     const { data, error } = await supabase
